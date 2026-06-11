@@ -1,0 +1,13 @@
+﻿streamlit>=1.45.0
+google-genai>=1.20.0
+faiss-cpu
+numpy
+sentence-transformers
+pypdf
+python-dotenv
+Pillow
+python-docx
+pytesseract
+pdf2image
+requests
+beautifulsoup4
