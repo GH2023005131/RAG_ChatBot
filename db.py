@@ -98,9 +98,8 @@ def delete_chat(chat_id):
 
     persist_path = BASE_DIR / "persist" / f"chat_{chat_id}"
     if persist_path.exists():
-        for child in persist_path.iterdir():
-            child.unlink()
-        persist_path.rmdir()
+        import shutil
+        shutil.rmtree(persist_path)
 
 
 def create_source(name, source_text, chat_id, source_type="document"):

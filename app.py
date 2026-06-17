@@ -1,7 +1,6 @@
-﻿import os
+import os
 from pathlib import Path
 
-import google.genai as genai
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -16,20 +15,21 @@ from db import (
     list_sources,
     read_chat,
 )
+from local_llm import find_retrieve_answer
 from vector_functions import (
     SUPPORTED_EXTENSIONS,
-    add_documents_to_chat,
-    create_vector_store,
+    clear_sections,
     extract_text,
     extract_text_from_url,
-    retrieve_chat,
+    get_section_content,
+    get_section_names,
+    save_sections,
+    text_to_sections,
+    url_to_sections,
 )
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(dotenv_path=BASE_DIR / ".env")
-
-API_KEY = os.getenv("GOOGLE_API_KEY")
-POPPLER_PATH = os.getenv("POPPLER_PATH")
 
 st.set_page_config(
     page_title="DocVision AI",
@@ -38,16 +38,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-if not API_KEY:
-    st.title("📄 DocVision AI")
-    st.error("Missing GOOGLE_API_KEY. Create a .env file with GOOGLE_API_KEY=your_api_key")
-    st.stop()
-
-
-def load_language_model():
-    return genai.Client(api_key=API_KEY)
-
-MODEL = load_language_model()
+POPPLER_PATH = os.getenv("POPPLER_PATH")
 
 THEME_CSS = """
 <style>
@@ -112,67 +103,28 @@ def set_chat_query(chat_id=None):
         st.query_params = {"chat_id": [str(chat_id)]}
 
 
-def build_prompt(question, context_chunks):
-    context_text = "\n\n".join(context_chunks)
-    return f"""
-You are a professional AI assistant. Answer directly using only the context provided below.
-
-Context:
-{context_text}
-
-Question:
-{question}
-"""
-
-
-def build_conversation_history(chat_id):
-    messages = get_messages(chat_id)
-    history_lines = []
-    for message in messages:
-        role = "User" if message["sender"] == "user" else "Assistant"
-        history_lines.append(f"{role}: {message['content']}")
-    return "\n".join(history_lines)
-
-
-def generate_answer(chat_id, question):
-    context_chunks = retrieve_chat(chat_id, question, top_k=8)
-    if not context_chunks:
-        return "No relevant context found. Upload documents or add web sources.", []
-
-    conversation_history = build_conversation_history(chat_id)
-    prompt = build_prompt(question, context_chunks)
-    if conversation_history:
-        prompt = (
-            "You are a professional AI assistant. Use the conversation history and the context below to answer the latest question."
-            "\n\nConversation history:\n"
-            + conversation_history
-            + "\n\n" + prompt
-        )
-
-    try:
-        response = MODEL.models.generate_content(model="gemini-2.5-flash", contents=prompt)
-        answer_text = response.text if getattr(response, "text", None) else ""
-        if not answer_text and response.candidates:
-            candidate = response.candidates[0]
-            if getattr(candidate, "content", None) and getattr(candidate.content, "parts", None):
-                answer_text = candidate.content.parts[0].text or ""
-        return answer_text.strip(), context_chunks
-    except Exception as error:
-        return f"Error generating answer: {error}", context_chunks
-
-
-def rebuild_chat_index(chat_id):
+def rebuild_sections(chat_id):
+    clear_sections(chat_id)
     sources = list_sources(chat_id)
-    texts = [source["source_text"] for source in sources if source["source_text"]]
-    if texts:
-        return create_vector_store(texts, chat_id)
-    return False
+    added = 0
+    for source in sources:
+        if source["type"] == "web":
+            sections = url_to_sections(source["name"])
+        else:
+            text = source["source_text"]
+            if not text:
+                continue
+            sections = text_to_sections(text, source["name"])
+        if sections:
+            save_sections(chat_id, sections, source_name=source["name"])
+            added += 1
+    return added > 0
 
 
 def build_dashboard():
     st.markdown(
         "<div class='hero-card'><div><h1>📄 DocVision AI</h1>"
-        "<p>Build a smart RAG app with persistent chats, document sources, and web page ingestion.</p></div></div>",
+        "<p>Local-first document Q&A using a lightweight LLM workflow — no vector DB or embeddings needed.</p></div></div>",
         unsafe_allow_html=True,
     )
 
@@ -232,6 +184,20 @@ def chats_home():
                 st.rerun()
 
 
+def generate_answer(chat_id, question):
+    section_names = get_section_names(chat_id)
+    if not section_names:
+        return "No documents found. Upload documents first.", []
+
+    get_content = lambda name: get_section_content(chat_id, name)
+    answer, sections_checked = find_retrieve_answer(
+        question=question,
+        section_names=section_names,
+        get_content_fn=get_content,
+    )
+    return answer, sections_checked
+
+
 def chat_page(chat_id):
     chat = read_chat(chat_id)
     if chat is None:
@@ -243,7 +209,7 @@ def chat_page(chat_id):
 
     st.markdown(
         "<div class='hero-card'><div><h1>📄 DocVision AI</h1>"
-        f"<p>Chat: {chat['title']} — upload documents, add web sources, and ask smart questions.</p></div></div>",
+        f"<p>Chat: {chat['title']} — upload documents, add web sources, and ask questions.</p></div></div>",
         unsafe_allow_html=True,
     )
     sources_count = len(list_sources(chat_id))
@@ -286,14 +252,9 @@ def chat_page(chat_id):
                     delete_source(source['id'])
                     remaining = list_sources(chat_id)
                     if remaining:
-                        rebuild_chat_index(chat_id)
+                        rebuild_sections(chat_id)
                     else:
-                        index_file = Path("persist") / f"chat_{chat_id}" / "faiss_index.bin"
-                        chunks_file = Path("persist") / f"chat_{chat_id}" / "chunks.pkl"
-                        if index_file.exists():
-                            index_file.unlink()
-                        if chunks_file.exists():
-                            chunks_file.unlink()
+                        clear_sections(chat_id)
                     st.rerun()
         else:
             st.markdown("No sources added yet.")
@@ -301,8 +262,8 @@ def chat_page(chat_id):
         st.markdown("---")
         st.markdown("### Notes")
         st.markdown(
-            "- Add documents or web sources to build the RAG index.\n"
-            "- Delete source items to rebuild the chat index automatically.\n"
+            "- Add documents or web sources to build the section index.\n"
+            "- Delete source items to rebuild the section index automatically.\n"
             "- Ask specific questions for better results."
         )
 
@@ -317,7 +278,9 @@ def chat_page(chat_id):
                     text = extract_text(uploaded_file.getvalue(), uploaded_file.name, poppler_path=POPPLER_PATH)
                     if text:
                         create_source(uploaded_file.name, text, chat_id, source_type="document")
-                        add_documents_to_chat(chat_id, [text])
+                        sections = text_to_sections(text, uploaded_file.name)
+                        if sections:
+                            save_sections(chat_id, sections, source_name=uploaded_file.name)
                         added += 1
                     else:
                         failed.append(uploaded_file.name)
@@ -335,19 +298,19 @@ def chat_page(chat_id):
                 page_text = extract_text_from_url(link_url.strip())
                 if page_text:
                     create_source(link_url.strip(), page_text, chat_id, source_type="web")
-                    add_documents_to_chat(chat_id, [page_text])
+                    sections = {"WEB_PAGE": page_text}
+                    save_sections(chat_id, sections, source_name=link_url.strip())
                     st.success("Web source added successfully.")
                 else:
                     st.error("Unable to extract text from the provided URL.")
             st.rerun()
-            
+
     st.markdown("### 💬 Conversation")
 
     messages = get_messages(chat_id)
 
     for message in messages:
         role = "user" if message["sender"] == "user" else "assistant"
-
         with st.chat_message(role):
             st.markdown(message["content"])
 
@@ -357,14 +320,17 @@ def chat_page(chat_id):
         create_message(chat_id, "user", question)
 
         with st.spinner("Generating answer..."):
-            answer, _ = generate_answer(chat_id, question)
+            answer, sections_checked = generate_answer(chat_id, question)
 
         if answer.startswith("Error generating answer:"):
             st.error(answer)
         elif answer.strip():
+            if sections_checked:
+                st.caption(f"📑 Sections consulted: {', '.join(sections_checked)}")
             create_message(chat_id, "ai", answer)
 
         st.rerun()
+
 
 def main():
     current_chat_id = get_chat_id_from_query()
