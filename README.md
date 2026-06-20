@@ -27,7 +27,7 @@ Built with **PyMuPDF4LLM** for document extraction and **Ollama** for local infe
 - Section files stored on disk under `persist/`
 
 ### Development Tooling
-- Pre-commit hooks for linting (ruff), formatting (black), type checking (mypy), and tests (pytest)
+- Pre-commit hooks for linting (ruff), formatting (ruff-format), type checking (pyrefly), security (bandit), and tests (pytest)
 
 ---
 
@@ -61,7 +61,7 @@ RAG-CHATBOT/
 ├── db.py                    # SQLite persistence (chats, sources, messages)
 ├── vector_functions.py      # Document extraction + section splitting + storage
 ├── local_llm.py             # Ollama Find-Retrieve-Answer workflow
-├── pyproject.toml           # Tool configs (black, ruff, mypy, pytest)
+├── pyproject.toml           # Tool configs (ruff, pyrefly, pytest)
 ├── .pre-commit-config.yaml  # Pre-commit hook definitions
 ├── requirements.txt         # Production dependencies
 ├── requirements-dev.txt     # Development dependencies
@@ -69,6 +69,18 @@ RAG-CHATBOT/
 │   ├── __init__.py
 │   ├── test_vector_functions.py
 │   └── test_db.py
+├── LICENSE                  # AGPLv3
+├── .editorconfig            # Editor settings
+├── .env.example             # Environment template
+├── .gitlab-ci.yml           # CI pipeline
+├── CONTRIBUTING.md          # Contribution guide
+├── USER_MANUAL.md           # End-user documentation
+├── AGENTS.md                # AI agent guide
+├── CHANGELOG.md             # Release history
+├── SECURITY.md              # Security policy
+├── CODE_OF_CONDUCT.md       # Community standards
+├── Dockerfile               # Container build
+├── .dockerignore            # Docker build ignores
 ├── .env
 ├── persist/
 │   └── chat_X/
@@ -86,7 +98,7 @@ RAG-CHATBOT/
 - **Streamlit** — UI framework
 - **SQLite** — Chat/source/message persistence
 - **Tesseract OCR** — Image text extraction
-- **Pre-commit** — Linting (ruff), formatting (black), type checking (mypy), tests (pytest)
+- **Pre-commit** — Linting (ruff), formatting (ruff-format), type checking (pyrefly), security (bandit), tests (pytest)
 
 ---
 

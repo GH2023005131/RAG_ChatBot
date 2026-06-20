@@ -1,0 +1,36 @@
+image: python:3.11-slim
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
+  PRE_COMMIT_HOME: "$CI_PROJECT_DIR/.pre-commit-cache"
+
+cache:
+  paths:
+    - .pip-cache/
+    - .pre-commit-cache/
+
+before_script:
+  - apt-get update && apt-get install -y --no-install-recommends git tesseract-ocr
+  - pip install -r requirements-dev.txt
+
+stages:
+  - lint
+  - typecheck
+  - test
+
+ruff:
+  stage: lint
+  script:
+    - ruff check .
+    - ruff format --check .
+
+pyrefly:
+  stage: typecheck
+  script:
+    - pyrefly check
+
+pytest:
+  stage: test
+  script:
+    - pytest --cov --cov-report=term
+  coverage: '/TOTAL.*\s+(\d+%)$/'
