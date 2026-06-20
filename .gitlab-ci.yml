@@ -19,6 +19,7 @@ stages:
   - type_check
   - security
   - dependency_audit
+  - changelog
   - test
   - coverage
 
@@ -56,6 +57,15 @@ pip-audit:
   stage: dependency_audit
   script:
     - pip-audit --desc on -r requirements.txt
+  allow_failure: true
+
+git-cliff:
+  stage: changelog
+  script:
+    - git-cliff --output CHANGELOG.md --unreleased
+  artifacts:
+    paths:
+      - CHANGELOG.md
   allow_failure: true
 
 pytest:
