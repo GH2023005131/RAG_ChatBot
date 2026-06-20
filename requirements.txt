@@ -6,6 +6,4 @@ numpy
 python-docx
 pillow
 pytesseract
-requests
-beautifulsoup4
 python-dotenv

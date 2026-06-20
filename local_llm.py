@@ -36,13 +36,14 @@ you must return "I need more info" and nothing else.
 
 def get_matching_section(response, section_names):
     from rapidfuzz import process
+
     return process.extractOne(response, section_names)[0]
 
 
 def find_retrieve_answer(question, section_names, get_content_fn, max_sections=20):
     current_info = None
     current_section = None
-    sections_checked = []
+    sections_checked: list = []
     names = list(section_names)
     max_attempts = min(max_sections, len(names)) if names else 0
 

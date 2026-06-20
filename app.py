@@ -20,12 +20,10 @@ from vector_functions import (
     SUPPORTED_EXTENSIONS,
     clear_sections,
     extract_text,
-    extract_text_from_url,
     get_section_content,
     get_section_names,
     save_sections,
     text_to_sections,
-    url_to_sections,
 )
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -84,8 +82,7 @@ st.markdown(THEME_CSS, unsafe_allow_html=True)
 
 
 def format_source(source):
-    icon = "🌐" if source["type"] == "web" else "📄"
-    return f"{icon} {source['name']}"
+    return f"📄 {source['name']}"
 
 
 def get_chat_id_from_query():
@@ -98,9 +95,9 @@ def get_chat_id_from_query():
 
 def set_chat_query(chat_id=None):
     if chat_id is None:
-        st.query_params = {}
+        st.query_params.clear()
     else:
-        st.query_params = {"chat_id": [str(chat_id)]}
+        st.query_params.update({"chat_id": str(chat_id)})
 
 
 def rebuild_sections(chat_id):
@@ -108,13 +105,10 @@ def rebuild_sections(chat_id):
     sources = list_sources(chat_id)
     added = 0
     for source in sources:
-        if source["type"] == "web":
-            sections = url_to_sections(source["name"])
-        else:
-            text = source["source_text"]
-            if not text:
-                continue
-            sections = text_to_sections(text, source["name"])
+        text = source["source_text"]
+        if not text:
+            continue
+        sections = text_to_sections(text, source["name"])
         if sections:
             save_sections(chat_id, sections, source_name=source["name"])
             added += 1
@@ -124,16 +118,16 @@ def rebuild_sections(chat_id):
 def build_dashboard():
     st.markdown(
         "<div class='hero-card'><div><h1>📄 DocVision AI</h1>"
-        "<p>Local-first document Q&A using a lightweight LLM workflow — no vector DB or embeddings needed.</p></div></div>",
+        "<p>Local-first document Q&A using a lightweight LLM workflow</p>"
+        "<p style='font-size:0.85rem;opacity:0.7'>— no vector DB or embeddings needed.</p></div></div>",
         unsafe_allow_html=True,
     )
 
     with st.container():
         chats = list_chats()
         chat_count = len(chats)
-        docs_count = sum(len(list_sources(chat['id'], source_type='document')) for chat in chats)
-        web_count = sum(len(list_sources(chat['id'], source_type='web')) for chat in chats)
-        stats_col1, stats_col2, stats_col3 = st.columns(3)
+        docs_count = sum(len(list_sources(chat["id"], source_type="document")) for chat in chats)
+        stats_col1, stats_col2 = st.columns(2)
         stats_col1.markdown(
             f"<div class='metric-card'><h3>Chats</h3><p>{chat_count}</p></div>",
             unsafe_allow_html=True,
@@ -142,17 +136,13 @@ def build_dashboard():
             f"<div class='metric-card'><h3>Documents</h3><p>{docs_count}</p></div>",
             unsafe_allow_html=True,
         )
-        stats_col3.markdown(
-            f"<div class='metric-card'><h3>Web sources</h3><p>{web_count}</p></div>",
-            unsafe_allow_html=True,
-        )
 
 
 def chats_home():
     build_dashboard()
 
     st.markdown("## Your chat sessions")
-    st.markdown("Create a chat and store related PDF, DOCX, text, image, or web sources per session.")
+    st.markdown("Create a chat and store related PDF, DOCX, text, or image sources per session.")
 
     with st.form("create_chat_form", clear_on_submit=True):
         chat_title = st.text_input("Chat title", placeholder="Enter chat title")
@@ -176,10 +166,10 @@ def chats_home():
             cols = st.columns([0.65, 0.15, 0.2])
             cols[0].markdown(f"**{chat['title']}**")
             if cols[1].button("Open", key=f"open_{chat['id']}"):
-                set_chat_query(chat['id'])
+                set_chat_query(chat["id"])
                 st.rerun()
             if cols[2].button("Delete", key=f"delete_{chat['id']}"):
-                delete_chat(chat['id'])
+                delete_chat(chat["id"])
                 st.success(f"Deleted chat: {chat['title']}")
                 st.rerun()
 
@@ -189,7 +179,9 @@ def generate_answer(chat_id, question):
     if not section_names:
         return "No documents found. Upload documents first.", []
 
-    get_content = lambda name: get_section_content(chat_id, name)
+    def get_content(name: str) -> str:
+        return get_section_content(chat_id, name)
+
     answer, sections_checked = find_retrieve_answer(
         question=question,
         section_names=section_names,
@@ -209,7 +201,7 @@ def chat_page(chat_id):
 
     st.markdown(
         "<div class='hero-card'><div><h1>📄 DocVision AI</h1>"
-        f"<p>Chat: {chat['title']} — upload documents, add web sources, and ask questions.</p></div></div>",
+        f"<p>Chat: {chat['title']} — upload documents and ask questions.</p></div></div>",
         unsafe_allow_html=True,
     )
     sources_count = len(list_sources(chat_id))
@@ -224,22 +216,12 @@ def chat_page(chat_id):
         st.markdown("### Upload documents")
         uploaded_files = st.file_uploader(
             "Drop files here or click to browse",
-            type=[ext.strip('.') for ext in sorted(SUPPORTED_EXTENSIONS)],
+            type=[ext.strip(".") for ext in sorted(SUPPORTED_EXTENSIONS)],
             accept_multiple_files=True,
             help="Supported: PDF, DOCX, TXT, CSV, MD, PNG, JPG, JPEG, BMP, TIFF",
             key=f"upload_{chat_id}",
         )
         process_docs = st.button("Add documents", key=f"process_docs_{chat_id}")
-
-        st.markdown("---")
-        st.markdown("### Add web source")
-        link_url = st.text_input(
-            "Web page URL",
-            value="",
-            key=f"link_url_{chat_id}",
-            help="Paste a public webpage URL to index its content.",
-        )
-        add_link = st.button("Add web source", key=f"add_link_{chat_id}")
 
         st.markdown("---")
         st.markdown("### Sources")
@@ -249,7 +231,7 @@ def chat_page(chat_id):
                 cols = st.columns([0.8, 0.2])
                 cols[0].markdown(format_source(source))
                 if cols[1].button("❌", key=f"delete_source_{source['id']}"):
-                    delete_source(source['id'])
+                    delete_source(source["id"])
                     remaining = list_sources(chat_id)
                     if remaining:
                         rebuild_sections(chat_id)
@@ -262,7 +244,7 @@ def chat_page(chat_id):
         st.markdown("---")
         st.markdown("### Notes")
         st.markdown(
-            "- Add documents or web sources to build the section index.\n"
+            "- Add documents to build the section index.\n"
             "- Delete source items to rebuild the section index automatically.\n"
             "- Ask specific questions for better results."
         )
@@ -275,7 +257,11 @@ def chat_page(chat_id):
                 added = 0
                 failed = []
                 for uploaded_file in uploaded_files:
-                    text = extract_text(uploaded_file.getvalue(), uploaded_file.name, poppler_path=POPPLER_PATH)
+                    text = extract_text(
+                        uploaded_file.getvalue(),
+                        uploaded_file.name,
+                        poppler_path=POPPLER_PATH,
+                    )
                     if text:
                         create_source(uploaded_file.name, text, chat_id, source_type="document")
                         sections = text_to_sections(text, uploaded_file.name)
@@ -288,21 +274,6 @@ def chat_page(chat_id):
                 st.success(f"Added {added} document{'' if added == 1 else 's'}.")
             if failed:
                 st.error("Failed to read: " + ", ".join(failed))
-            st.rerun()
-
-    if add_link:
-        if not link_url.strip():
-            st.warning("Enter a webpage URL before adding a source.")
-        else:
-            with st.spinner("Fetching webpage content..."):
-                page_text = extract_text_from_url(link_url.strip())
-                if page_text:
-                    create_source(link_url.strip(), page_text, chat_id, source_type="web")
-                    sections = {"WEB_PAGE": page_text}
-                    save_sections(chat_id, sections, source_name=link_url.strip())
-                    st.success("Web source added successfully.")
-                else:
-                    st.error("Unable to extract text from the provided URL.")
             st.rerun()
 
     st.markdown("### 💬 Conversation")

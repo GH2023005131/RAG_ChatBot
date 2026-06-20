@@ -5,18 +5,24 @@ from collections import defaultdict
 from pathlib import Path
 
 import pymupdf4llm
-import requests
-from bs4 import BeautifulSoup
+import pytesseract
 from docx import Document
 from PIL import Image
-import pytesseract
 
 BASE_DIR = Path(__file__).resolve().parent
 PERSIST_DIR = BASE_DIR / "persist"
 
 SUPPORTED_EXTENSIONS = {
-    ".pdf", ".docx", ".txt", ".csv", ".md",
-    ".png", ".jpg", ".jpeg", ".bmp", ".tiff",
+    ".pdf",
+    ".docx",
+    ".txt",
+    ".csv",
+    ".md",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".bmp",
+    ".tiff",
 }
 
 
@@ -36,7 +42,8 @@ def extract_text_from_pdf(file_bytes, poppler_path=None):
 def extract_text_from_image(file_bytes):
     try:
         image = Image.open(io.BytesIO(file_bytes)).convert("RGB")
-        return pytesseract.image_to_string(image, lang="eng").strip()
+        result = pytesseract.image_to_string(image, lang="eng")
+        return result.strip() if isinstance(result, str) else str(result)
     except Exception:
         return ""
 
@@ -53,20 +60,6 @@ def extract_text_from_docx(file_bytes):
 def extract_text_from_text(file_bytes):
     try:
         return file_bytes.decode("utf-8", errors="replace").strip()
-    except Exception:
-        return ""
-
-
-def extract_text_from_url(url):
-    try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-        }
-        response = requests.get(url, headers=headers, timeout=15)
-        if response.status_code != 200:
-            return ""
-        soup = BeautifulSoup(response.text, "html.parser")
-        return soup.get_text(separator="\n").strip()
     except Exception:
         return ""
 
@@ -92,7 +85,7 @@ def split_markdown_by_headings(markdown_text):
         r"^####\s+(.+)$",
         r"^\*\*[\d\.]+\.\*\*\s*\*\*(.+)\*\*$",
     ]
-    sections = defaultdict(str)
+    sections: dict = defaultdict(str)
     heading_text = "INTRO"
     for line in markdown_text.splitlines():
         line = line.strip()
@@ -110,18 +103,8 @@ def split_markdown_by_headings(markdown_text):
 def text_to_sections(text, filename):
     if not text:
         return None
-    if filename.lower().endswith(".pdf"):
-        sections = split_markdown_by_headings(text)
-    else:
-        sections = {"DOCUMENT": text}
+    sections = split_markdown_by_headings(text) if filename.lower().endswith(".pdf") else {"DOCUMENT": text}
     return sections
-
-
-def url_to_sections(url):
-    text = extract_text_from_url(url)
-    if not text:
-        return None
-    return {"WEB_PAGE": text}
 
 
 def get_sections_dir(chat_id):

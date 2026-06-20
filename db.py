@@ -15,19 +15,16 @@ def init_db():
     conn = connect_db()
     cursor = conn.cursor()
 
-    cursor.execute(
-        """
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS chat (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
-        """
-    )
+        """)
 
-    cursor.execute(
-        """
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS sources (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
@@ -36,11 +33,9 @@ def init_db():
             chat_id INTEGER,
             FOREIGN KEY (chat_id) REFERENCES chat(id)
         )
-        """
-    )
+        """)
 
-    cursor.execute(
-        """
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             chat_id INTEGER NOT NULL,
@@ -49,8 +44,7 @@ def init_db():
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(chat_id) REFERENCES chat(id)
         )
-        """
-    )
+        """)
 
     conn.commit()
     conn.close()
@@ -99,6 +93,7 @@ def delete_chat(chat_id):
     persist_path = BASE_DIR / "persist" / f"chat_{chat_id}"
     if persist_path.exists():
         import shutil
+
         shutil.rmtree(persist_path)
 
 
