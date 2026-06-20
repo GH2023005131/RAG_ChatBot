@@ -4,9 +4,11 @@ status: todo
 priority: medium
 ---
 
-## Description
+## Tasks
 
-What needs to be done?
+- [ ] Task 1
+- [ ] Task 2
+- [ ] Task 3
 
 ## Definition of Done
 
