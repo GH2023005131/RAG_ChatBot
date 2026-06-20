@@ -1,6 +1,6 @@
 [changelog]
 header = "# Changelog\n"
-body = "## {{ version }} — {{ timestamp | date(format=\"%Y-%m-%d\") }}\n"
+body = "## {{ version }} — {{ timestamp | default(value=\"\") | date(format=\"%Y-%m-%d\") }}\n"
 trim = true
 footer = ""
 

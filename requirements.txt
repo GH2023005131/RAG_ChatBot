@@ -2,7 +2,7 @@
 ollama
 pymupdf4llm
 rapidfuzz
-numpy
+numpy<2
 python-docx
 pillow
 pytesseract
