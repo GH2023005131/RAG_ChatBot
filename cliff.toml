@@ -1,0 +1,18 @@
+[changelog]
+header = "# Changelog\n"
+body = "## {{ version }} — {{ timestamp | date(format=\"%Y-%m-%d\") }}\n"
+trim = true
+footer = ""
+
+[git]
+conventional_commits = true
+filter_unconventional = false
+commit_parsers = [
+    { message = "^feat", group = "Features" },
+    { message = "^fix", group = "Bug Fixes" },
+    { message = "^doc", group = "Documentation" },
+    { message = "^refactor", group = "Refactor" },
+    { message = "^test", group = "Testing" },
+    { message = "^ci", group = "CI/CD" },
+    { message = "^chore", group = "Chores" },
+]

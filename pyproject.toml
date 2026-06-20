@@ -19,13 +19,23 @@ preview = true
 project-excludes = ["**/tests", "**/__pycache__", "**/.venv", "**/persist"]
 ignore-missing-imports = ["pytesseract.*"]
 
+[tool.mypy]
+python_version = "3.11"
+strict = false
+ignore_missing_imports = true
+follow_imports = "skip"
+warn_unused_ignores = true
+disallow_untyped_defs = false
+check_untyped_defs = true
+exclude = ["tests/"]
+
 [tool.pytest.ini_options]
 minversion = "7.0"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short --cov=app --cov=db --cov=vector_functions --cov=local_llm --cov-report=term"
+addopts = "-v --tb=short"
 
 [tool.coverage.run]
 source = ["app.py", "db.py", "vector_functions.py", "local_llm.py"]

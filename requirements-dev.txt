@@ -1,6 +1,11 @@
 pre-commit
 ruff
 pyrefly
+mypy
+pyupgrade
+bandit
+detect-secrets
+pip-audit
 pytest
 pytest-cov
-
+git-cliff
