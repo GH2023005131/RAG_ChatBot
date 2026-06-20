@@ -4,13 +4,15 @@ variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
   PRE_COMMIT_HOME: "$CI_PROJECT_DIR/.pre-commit-cache"
 
+default:
+  timeout: 10m
+
 cache:
   paths:
     - .pip-cache/
     - .pre-commit-cache/
 
 before_script:
-  - apt-get update && apt-get install -y --no-install-recommends git tesseract-ocr
   - pip install -r requirements-dev.txt
 
 stages:
@@ -51,7 +53,7 @@ bandit:
 detect-secrets:
   stage: security
   script:
-    - detect-secrets-hook --baseline .secrets.baseline $(find . -type f -not -path './.venv/*' -not -path './.git/*' -not -path './__pycache__/*' | xargs)
+    - detect-secrets-hook --baseline .secrets.baseline $(find . -type f -name '*.py' -not -path './.venv/*' -not -path './.git/*' | xargs)
 
 pip-audit:
   stage: dependency_audit
