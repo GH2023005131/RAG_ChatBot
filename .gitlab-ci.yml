@@ -30,6 +30,11 @@ ruff-lint:
   script:
     - ruff check .
 
+vulture:
+  stage: lint
+  script:
+    - vulture . --min-confidence 80
+
 ruff-format:
   stage: format
   script:
